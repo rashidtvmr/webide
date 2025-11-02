@@ -1,18 +1,19 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { useAuth } from '@/stores/auth'
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { useAuth } from "@/stores/auth";
 
-export const Route = createFileRoute('/app/')({
+export const Route = createFileRoute("/app/")({
   beforeLoad: async ({ navigate }) => {
-    const auth = useAuth()
-    if (!auth.isAuthenticated) {
-      navigate({ to: '/login', replace: true })
+    // Get the current auth state directly from the store
+    const { isAuthenticated } = useAuth();
+    if (!isAuthenticated) {
+      navigate({ to: "/login", replace: true });
     }
   },
   component: AppLayout,
-})
+});
 
 function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -30,7 +31,9 @@ function AppLayout() {
                 />
               )}
               <div className="text-sm">
-                <p className="font-medium text-slate-900">{user?.name || user?.email}</p>
+                <p className="font-medium text-slate-900">
+                  {user?.name || user?.email}
+                </p>
                 <p className="text-xs text-slate-500">{user?.provider}</p>
               </div>
             </div>
@@ -48,15 +51,20 @@ function AppLayout() {
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-slate-200 bg-white p-8">
-            <h2 className="text-2xl font-bold text-slate-900">Welcome to MyEditor</h2>
-            <p className="mt-2 text-slate-600">You're successfully authenticated!</p>
+            <h2 className="text-2xl font-bold text-slate-900">
+              Welcome to MyEditor
+            </h2>
+            <p className="mt-2 text-slate-600">
+              You're successfully authenticated!
+            </p>
             <p className="mt-4 text-sm text-slate-500">
-              This is your protected app area. Only authenticated users can access this page.
+              This is your protected app area. Only authenticated users can
+              access this page.
             </p>
           </div>
           <Outlet />
         </div>
       </main>
     </div>
-  )
+  );
 }
