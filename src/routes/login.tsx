@@ -1,9 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { LoginPage } from '@/components/login-page'
+import { useAuth } from '@/stores/auth'
+import { useEffect } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/login')({
-  component: RouteComponent,
+  component: LoginComponent
 })
 
-function RouteComponent() {
-  return <div>Hello "/login"!</div>
+function LoginComponent() {
+  const { isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/editor', replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
+  return <LoginPage />
 }
