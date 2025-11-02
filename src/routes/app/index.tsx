@@ -3,8 +3,8 @@ import { useAuth } from '@/stores/auth'
 
 export const Route = createFileRoute('/app/')({
   beforeLoad: async ({ navigate }) => {
-    const { isAuthenticated } = useAuth.getState()
-    if (!isAuthenticated) {
+    const auth = useAuth()
+    if (!auth.isAuthenticated) {
       navigate({ to: '/login', replace: true })
     }
   },

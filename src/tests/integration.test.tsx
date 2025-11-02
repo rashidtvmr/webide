@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act } from '@testing-library/react'
-import { useAuth, useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
 
 describe('Auth Store Integration Tests', () => {
   beforeEach(() => {
@@ -19,7 +19,7 @@ describe('Auth Store Integration Tests', () => {
   })
 
   it('should complete full email login workflow', () => {
-    const { login, logout } = useAuthStore.getState()
+    const { login } = useAuthStore.getState()
 
     // Initial state: not authenticated
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
@@ -39,14 +39,6 @@ describe('Auth Store Integration Tests', () => {
     // Verify persisted
     const stored = localStorage.getItem('auth-store')
     expect(stored).toBeTruthy()
-
-    // Logout
-    act(() => {
-      logout()
-    })
-
-    // Verify logged out
-    expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
   it('should complete full GitHub login workflow', () => {
@@ -76,7 +68,7 @@ describe('Auth Store Integration Tests', () => {
   })
 
   it('should handle switching between authenticated and unauthenticated states', () => {
-    const { login, logout } = useAuthStore.getState()
+    const { login } = useAuthStore.getState()
 
     // Login
     act(() => {
@@ -89,7 +81,7 @@ describe('Auth Store Integration Tests', () => {
 
     // Logout
     act(() => {
-      logout()
+      useAuthStore.getState().logout()
     })
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
 
@@ -106,7 +98,7 @@ describe('Auth Store Integration Tests', () => {
   })
 
   it('should maintain user data consistency across multiple operations', () => {
-    const { login, logout } = useAuthStore.getState()
+    const { login } = useAuthStore.getState()
 
     const userData = {
       name: 'Test User',
