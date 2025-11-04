@@ -129,25 +129,13 @@ function EditorPage() {
     setActivePanel("explorer");
     setShowUserMenu(false);
     try {
-      setLoadingText("Listing files...");
-      const result = await g.importViaGitTrees(
-        owner,
-        repoName,
-        ref,
-        token,
-        (done, total) => {
-          setLoadingText(`Downloading files ${done}/${total}...`);
-        }
-      );
+      setLoadingText("Downloading tarball...");
+      await g.importFromTarball(owner, repoName, ref, token);
+      setLoadingText("Building file tree...");
       await refreshTree(g);
-      if (result.truncated) {
-        alert(
-          "Warning: GitHub API truncated the tree. Some files may be missing."
-        );
-      }
     } catch (e) {
       console.error(e);
-      alert("Failed to import repository. Check permissions or token.");
+      alert("Failed to import repository tarball. Check permissions or token.");
     } finally {
       setLoadingText("");
     }
