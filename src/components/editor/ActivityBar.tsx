@@ -3,9 +3,11 @@ import {
   Search as SearchIcon,
   Bug,
   User as UserIcon,
+  Terminal,
+  GitBranch,
 } from "lucide-react";
 
-export type ActivityKey = "explorer" | "search" | "debug";
+export type ActivityKey = "explorer" | "search" | "debug" | "terminal" | "git";
 
 export function ActivityBar({
   active,
@@ -38,6 +40,20 @@ export function ActivityBar({
         className={`p-2 rounded ${active === "debug" ? "bg-[#3c3c3c]" : "hover:bg-[#2a2a2a]"}`}
       >
         <Bug size={18} />
+      </button>
+      <button
+        aria-label="Terminal"
+        onClick={() => setActive("terminal")}
+        className={`p-2 rounded ${active === "terminal" ? "bg-[#3c3c3c]" : "hover:bg-[#2a2a2a]"}`}
+      >
+        <Terminal size={18} />
+      </button>
+      <button
+        aria-label="Git"
+        onClick={() => setActive("git")}
+        className={`p-2 rounded ${active === "git" ? "bg-[#3c3c3c]" : "hover:bg-[#2a2a2a]"}`}
+      >
+        <GitBranch size={18} />
       </button>
       <div className="mt-auto" />
       <button

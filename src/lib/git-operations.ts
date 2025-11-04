@@ -9,6 +9,8 @@ import {
   listFiles,
   log,
   push,
+  reset,
+  status,
 } from "isomorphic-git";
 import * as http from "isomorphic-git/http/web";
 import LightningFS from "@isomorphic-git/lightning-fs";
@@ -16,8 +18,10 @@ import { ungzip } from "pako";
 import untar from "js-untar";
 import { getSupabase } from "@/lib/supabase";
 
-const CORS_PROXY = import.meta.env.VITE_GIT_CORS_PROXY || "https://cors.isomorphic-git.org";
-const GH_ARCHIVE_FUNCTION_NAME: string = (import.meta.env.VITE_GH_ARCHIVE_FUNCTION_NAME as string) || "clever-handler";
+const CORS_PROXY = import.meta.env.VITE_GIT_CORS_PROXY ||
+  "https://cors.isomorphic-git.org";
+const GH_ARCHIVE_FUNCTION_NAME: string =
+  (import.meta.env.VITE_GH_ARCHIVE_FUNCTION_NAME as string) || "clever-handler";
 
 // Initialize the file system
 const ifs = new LightningFS("myeditor");
@@ -55,7 +59,9 @@ export class GitOperations {
   }
 
   async listRepositories() {
-    throw new Error("Cannot list GitHub repositories with Isomorphic Git - requires GitHub API");
+    throw new Error(
+      "Cannot list GitHub repositories with Isomorphic Git - requires GitHub API",
+    );
   }
 
   async ensureWorkdir() {
@@ -76,13 +82,21 @@ export class GitOperations {
       url,
       corsProxy: CORS_PROXY,
       headers: this.authHeaders(token),
-      onAuth: () => ({ username: token || "", password: token ? "x-oauth-basic" : "" }),
+      onAuth: () => ({
+        username: token || "",
+        password: token ? "x-oauth-basic" : "",
+      }),
     });
   }
 
-  async commit({ message, author }: { message: string; author: { name: string; email: string } }) {
+  async commit(message: string) {
     await add({ fs: ifs, dir: this.workDir, filepath: "." });
-    await commit({ fs: ifs, dir: this.workDir, message, author });
+    await commit({
+      fs: ifs,
+      dir: this.workDir,
+      message,
+      author: { name: "User", email: "user@example.com" },
+    });
   }
 
   async listFiles() {
@@ -98,7 +112,12 @@ export class GitOperations {
   }
 
   async createBranch(branchName: string) {
-    await branch({ fs: ifs, dir: this.workDir, ref: branchName, checkout: true });
+    await branch({
+      fs: ifs,
+      dir: this.workDir,
+      ref: branchName,
+      checkout: true,
+    });
   }
 
   async pushChanges(token: string) {
@@ -108,30 +127,45 @@ export class GitOperations {
       dir: this.workDir,
       corsProxy: CORS_PROXY,
       headers: this.authHeaders(token),
-      onAuth: () => ({ username: token || "", password: token ? "x-oauth-basic" : "" }),
+      onAuth: () => ({
+        username: token || "",
+        password: token ? "x-oauth-basic" : "",
+      }),
     });
   }
 
   // Import via Supabase Edge Function tarball only
-  async importFromTarball(owner: string, repo: string, ref = "main", token?: string) {
+  async importFromTarball(
+    owner: string,
+    repo: string,
+    ref = "main",
+    token?: string,
+  ) {
     await this.ensureWorkdir();
 
     const supabase = getSupabase();
-    const { data, error } = await supabase.functions.invoke(GH_ARCHIVE_FUNCTION_NAME, {
-      body: { token, owner, repo, ref },
-      headers: { Accept: "application/octet-stream" },
-      // @ts-ignore
-      responseType: "arraybuffer",
-    } as any);
+    const { data, error } = await supabase.functions.invoke(
+      GH_ARCHIVE_FUNCTION_NAME,
+      {
+        body: { token, owner, repo, ref },
+        headers: { Accept: "application/octet-stream" },
+        // @ts-ignore
+        responseType: "arraybuffer",
+      } as any,
+    );
 
     if (error) throw error;
 
     let ab: ArrayBuffer;
     if (data instanceof ArrayBuffer) ab = data;
-    else if (data && typeof (data as any).arrayBuffer === "function") ab = await (data as Blob).arrayBuffer();
-    else if (data instanceof Uint8Array) ab = data.buffer;
-    else if (typeof data === "string") ab = new TextEncoder().encode(data).buffer;
-    else throw new Error("Unexpected tarball response type from Edge Function");
+    else if (data && typeof (data as any).arrayBuffer === "function") {
+      ab = await (data as Blob).arrayBuffer();
+    } else if (data instanceof Uint8Array) ab = data.buffer;
+    else if (typeof data === "string") {
+      ab = new TextEncoder().encode(data).buffer;
+    } else {throw new Error(
+        "Unexpected tarball response type from Edge Function",
+      );}
 
     // Decompress gzip -> tar
     let tarBytes: Uint8Array;
@@ -157,7 +191,9 @@ export class GitOperations {
         let cur = this.workDir;
         for (const seg of parent.split("/")) {
           cur += `/${seg}`;
-          try { await ifs.promises.mkdir(cur); } catch {}
+          try {
+            await ifs.promises.mkdir(cur);
+          } catch {}
         }
       }
 
@@ -166,8 +202,18 @@ export class GitOperations {
     }
 
     // Initialize git repo and set origin
-    try { await init({ fs: ifs, dir: this.workDir, defaultBranch: ref }); } catch {}
-    try { await addRemote({ fs: ifs, dir: this.workDir, remote: "origin", url: `https://github.com/${owner}/${repo}.git`, force: true }); } catch {}
+    try {
+      await init({ fs: ifs, dir: this.workDir, defaultBranch: ref });
+    } catch {}
+    try {
+      await addRemote({
+        fs: ifs,
+        dir: this.workDir,
+        remote: "origin",
+        url: `https://github.com/${owner}/${repo}.git`,
+        force: true,
+      });
+    } catch {}
   }
 
   // Filesystem helpers
@@ -204,9 +250,17 @@ export class GitOperations {
       for (const name of entries) {
         const full = `${dir}/${name}`;
         const st = await ifs.promises.stat(full);
-        const rel = full.startsWith(base + "/") ? full.slice(base.length + 1) : full;
+        const rel = full.startsWith(base + "/")
+          ? full.slice(base.length + 1)
+          : full;
         if (st.isDirectory()) {
-          nodes.push({ id: rel, name, path: rel, isDir: true, children: await walk(full) });
+          nodes.push({
+            id: rel,
+            name,
+            path: rel,
+            isDir: true,
+            children: await walk(full),
+          });
         } else {
           nodes.push({ id: rel, name, path: rel });
         }
@@ -215,5 +269,43 @@ export class GitOperations {
     }
 
     return walk(this.workDir);
+  }
+
+  async search(
+    query: string,
+  ): Promise<{ file: string; line: number; content: string }[]> {
+    const results: { file: string; line: number; content: string }[] = [];
+    const files = await this.listFiles();
+    for (const file of files) {
+      try {
+        const content = await this.readFile(file);
+        const lines = content.split("\n");
+        lines.forEach((line, index) => {
+          if (line.toLowerCase().includes(query.toLowerCase())) {
+            results.push({ file, line: index + 1, content: line.trim() });
+          }
+        });
+      } catch {
+        // Skip binary files or errors
+      }
+    }
+    return results;
+  }
+
+  async status() {
+    return status({ fs: ifs, dir: this.workDir });
+  }
+
+  async currentBranch() {
+    const branches = await branch({ fs: ifs, dir: this.workDir });
+    return branches.current || "main";
+  }
+
+  async add(filepath: string) {
+    await add({ fs: ifs, dir: this.workDir, filepath });
+  }
+
+  async reset(filepath: string) {
+    await reset({ fs: ifs, dir: this.workDir, filepath });
   }
 }

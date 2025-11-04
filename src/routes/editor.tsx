@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/stores/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { Tree } from "react-arborist";
 import { Play, FilePlus, FolderPlus, LogOut } from "lucide-react";
@@ -11,6 +11,8 @@ import { RepoList } from "@/components/editor/RepoList";
 import type { RepoNode } from "@/components/editor/RepoList";
 import { GitOperations } from "@/lib/git-operations";
 import type { FsTreeNode } from "@/lib/git-operations";
+import { TerminalPanel } from "@/components/editor/TerminalPanel";
+import { GitPanel } from "@/components/editor/GitPanel";
 
 export const Route = createFileRoute("/editor")({
   component: EditorPage,
@@ -39,6 +41,15 @@ function EditorPage() {
   const [editorValue, setEditorValue] = useState<string>("");
   const [selectedNode, setSelectedNode] = useState<FsTreeNode | null>(null);
   const [loadingText, setLoadingText] = useState<string>("");
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<
+    { file: string; line: number; content: string }[]
+  >([]);
+
+  // Editor ref for cursor positioning
+  const editorRef = useRef<any>(null);
 
   // Helpers
   async function refreshTree(curGit = git) {
@@ -161,6 +172,30 @@ function EditorPage() {
     alert("Run started (placeholder).");
   }
 
+  // Search effect
+  useEffect(() => {
+    if (!git || !searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const doSearch = async () => {
+      const results = await git.search(searchQuery);
+      setSearchResults(results);
+    };
+    doSearch();
+  }, [searchQuery, git]);
+
+  // Open search result
+  async function openSearchResult(file: string, line: number) {
+    await openFile(file);
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.revealLineInCenter(line);
+        editorRef.current.setPosition({ lineNumber: line, column: 1 });
+      }
+    }, 100);
+  }
+
   return (
     <div className="w-full h-screen bg-[#1e1e1e] text-white flex relative">
       <ActivityBar
@@ -214,16 +249,43 @@ function EditorPage() {
           </div>
         )}
         {activePanel === "search" && (
-          <div className="p-3 space-y-2">
-            <div className="text-xs uppercase tracking-wide text-slate-300">
-              Search
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="p-3 space-y-2">
+              <div className="text-xs uppercase tracking-wide text-slate-300">
+                Search
+              </div>
+              <input
+                className="w-full bg-[#1f1f1f] border border-black/20 rounded px-2 py-1 text-sm outline-none focus:ring-1 ring-blue-500"
+                placeholder="Search across files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <input
-              className="w-full bg-[#1f1f1f] border border-black/20 rounded px-2 py-1 text-sm outline-none focus:ring-1 ring-blue-500"
-              placeholder="Search (placeholder)"
-            />
-            <div className="text-slate-400 text-xs">
-              Type to search across files (not implemented)
+            <div className="flex-1 overflow-auto px-3 pb-3">
+              {searchResults.length > 0 ? (
+                <div className="space-y-1">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={index}
+                      className="p-2 bg-[#1f1f1f] rounded cursor-pointer hover:bg-white/5 text-sm"
+                      onClick={() => openSearchResult(result.file, result.line)}
+                    >
+                      <div className="text-blue-400 font-medium truncate">
+                        {result.file}:{result.line}
+                      </div>
+                      <div className="text-slate-300 text-xs truncate">
+                        {result.content.trim()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : searchQuery.trim() ? (
+                <div className="text-slate-400 text-xs">No results found</div>
+              ) : (
+                <div className="text-slate-400 text-xs">
+                  Enter a search term
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -243,6 +305,8 @@ function EditorPage() {
             </div>
           </div>
         )}
+        {activePanel === "terminal" && <TerminalPanel />}
+        {activePanel === "git" && <GitPanel git={git} />}
       </div>
 
       {/* Main Area */}
